@@ -1,0 +1,5 @@
+Variant,PSNR,SSIM,Changed Ratio,P(LSB=1),Chi2,p-value
+Cover,-,-,-,0.5119,20937.21,0.0000
+Plain LSB,88.06,1.0000,0.01%,0.5118,20914.26,0.0000
+Encrypted LSB,84.73,1.0000,0.02%,0.5118,20922.05,0.0000
+Encrypted Random LSB,84.78,1.0000,0.02%,0.5119,20917.20,0.0000
