@@ -39,7 +39,7 @@ print(restored_plain)
 from lsb import embed_data, encrypt_message, pack_encrypted_payload
 
 password = "SecretLabPassword"
-salt, nonce, ciphertext = encrypt_message(password, "Ералаша не забудем")
+salt, nonce, ciphertext = encrypt_message(password, "слово пацана")
 payload = pack_encrypted_payload(salt, nonce, ciphertext)
 
 embed_data(
