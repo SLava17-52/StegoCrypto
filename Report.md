@@ -11,9 +11,9 @@
 
 3. **Encrypted Random LSB** - встраивание зашифрованного текста в псевдослучайные позиции, определяемые по ключу-паролю без повторений
 
-**Используемые изображения:** В качестве основного контейнера в эксперименте использовалось пользовательское изображение `akashi.png` 
+**Используемые изображения:** В качестве основного контейнера в эксперименте использовалось пользовательское изображение `akashi.png`, также использовалось предложенное изображение `gradient.png`
 
-**Встраиваемое сообщение:** В качестве основного payload использовалась тестовая строка: `"Ералаша не забудем"`
+**Встраиваемое сообщение:** В качестве основного payload использовалась тестовая строка: `"слово пацана"`
 
 ## 2. Реализация
 
@@ -21,66 +21,182 @@
 Встраивание выполняется путем замены младшего бита цветовых компонент (R, G, B) пикселей изображения битами полезной нагрузки. Изменение значения компоненты составляет строго pm 1 или 0
 
 Реализация из `lsb.py`:
-```
-def embed_data(image_path: str, output_path: str, data_bytes: bytes, password: str = None, random_pos: bool = False):
-    img = Image.open(image_path).convert('RGB')
+- Исходное изображение загружается через `Pillow`, приводится к цветовой модели `RGB` (3 канала по 8 бит на пиксель) и разворачивается в одномерный список значений цветовых компонент
+- Полезные данные вместе с 4-байтовым заголовком длины преобразуются в поток бит (от старшего бита байта к младшему)
+- Для каждой выбранной компоненты младший бит очищается маской `~1` (`0xFE`) и через побитовое ИЛИ (`|`) заменяется на бит сообщения
+- Изменённые компоненты собираются обратно в пиксели и сохраняются в формате `PNG` без сжатия с потерями
+
+```python
+def embed_data(
+    image_path: str,
+    output_path: str,
+    data_bytes: bytes,
+    password: str = None,
+    random_pos: bool = False,
+) -> None:
+    # Загружаем контейнер и приводим к RGB (3 канала по 8 бит на каждый пиксель)
+    img = Image.open(image_path).convert("RGB")
     width, height = img.size
     max_capacity_bits = width * height * 3
 
-    # Пакет данных: [4 байта общей длины] + [данные]
-    full_data = len(data_bytes).to_bytes(4, 'big') + data_bytes
-    total_bits_needed = len(full_data) * 8
+    # Добавляем 4-байтовый big-endian префикс длины полезной нагрузки
+    framed_data = len(data_bytes).to_bytes(4, "big") + data_bytes
+    total_bits_needed = len(framed_data) * 8
 
+    # Проверяем, помещается ли весь пакет (заголовок + данные) в доступные младшие биты
     if total_bits_needed > max_capacity_bits:
-        raise ValueError(f"Ошибка: Сообщение слишком большое. Требуется {total_bits_needed} бит, доступно {max_capacity_bits}.")
+        raise ValueError(
+            f"Сообщение слишком большое: требуется {total_bits_needed} бит, доступно {max_capacity_bits} бит."
+        )
 
-    bits = [(b >> i) & 1 for b in full_data for i in range(7, -1, -1)]
+    # Раскладываем каждый байт на 8 бит от старшего (7) к младшему (0)
+    bits = [(byte >> bit_idx) & 1 for byte in framed_data for bit_idx in range(7, -1, -1)]
 
+    # Разворачиваем пиксели (RGB) в плоский список цветовых компонент
     flat_channels = []
-    for p in img.getdata():
-        flat_channels.extend(p)
+    for pixel in img.getdata():
+        flat_channels.extend(pixel)
 
-    # Логика встраивания (последовательная или псевдослучайная)
     if random_pos:
-        pass_hash = hashlib.sha256(password.encode('utf-8')).digest()
-        rng = random.Random(int.from_bytes(pass_hash, 'big'))
-        indices = list(range(max_capacity_bits))
-        rng.shuffle(indices)
-        chosen_indices = indices[:len(bits)]
-        for bit_idx, pos in enumerate(chosen_indices):
-            flat_channels[pos] = (flat_channels[pos] & ~1) | bits[bit_idx]
+        indices = _get_shuffled_indices(max_capacity_bits, password)
+        # Записываем биты в псевдослучайные позиции без повторений: сбрасываем LSB  и ставим бит 
+        for i, bit in enumerate(bits):
+            pos = indices[i]
+            flat_channels[pos] = (flat_channels[pos] & ~1) | bit
     else:
-        for idx, bit in enumerate(bits):
-            flat_channels[idx] = (flat_channels[idx] & ~1) | bit
+        # Последовательно записываем биты в младшие биты первых total_bits_needed компонент
+        for i, bit in enumerate(bits):
+            flat_channels[i] = (flat_channels[i] & ~1) | bit
 
-    new_pixels = [(flat_channels[i], flat_channels[i + 1], flat_channels[i + 2]) for i in range(0, len(flat_channels), 3)]
-    res_img = Image.new('RGB', (width, height))
-    res_img.putdata(new_pixels)
-    res_img.save(output_path, 'PNG')
+    # Собираем плоский массив обратно в RGB-пиксели
+    new_pixels = [
+        (flat_channels[i], flat_channels[i + 1], flat_channels[i + 2])
+        for i in range(0, len(flat_channels), 3)
+    ]
+
+    # Гарантируем существование каталога вывода и сохраняем в PNG без сжатия с потерями
+    out_dir = os.path.dirname(output_path)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+
+    stego_img = Image.new("RGB", (width, height))
+    stego_img.putdata(new_pixels)
+    stego_img.save(output_path, format="PNG")
 ```
+
 ### 2.2. Хранение длины и проверка вместимости
-**Длина сообщения**: Для корректного извлечения первые 4 байта (32 бита) контейнера выделены под запись общей длины полезной нагрузки в байтах (int.to_bytes(4, 'big'))
 
-**Вместимость**: Перед началом работы емкость контейнера проверяется по формуле capacity = width * height * 3
+**Как хранится длина**
 
-### 2.3. Шифрование сообщения
-Перед внедрением в гибридных вариантах текст шифруется с помощью AES-GCM. Ключ длиной 32 байта генерируется из пароля через PBKDF2HMAC  с добавлением случайной соли (16 байт) и вектора инициализации (12 байт)
+Длина полезного блока data_bytes в байтах кодируется в 4-байтное (32-битное) беззнаковое целое число в порядке big-endian (to_bytes(4, "big"))
+
+Пакет для встраивания формируется как [4 байта длины] + [data_bytes]
+
+При извлечении сначала читаются первые 32 младших бита, из них восстанавливается число байт data_len, после чего считываются следующие data_len * 8 бит и собираются обратно в байты
+
+Реализация из `lsb.py`:
+
+```
+framed_data = len(data_bytes).to_bytes(4, "big") + data_bytes
+
+length_bits = [flat_channels[i] & 1 for i in range(32)]
+data_len = 0
+for b in length_bits:
+    data_len = (data_len << 1) | b
+
+total_bits_needed = 32 + data_len * 8
+payload_bits = [flat_channels[i] & 1 for i in range(32, total_bits_needed)]
+```
+
+**Как проверяется вместимость**: 
+
+При встраивании вычисляется максимальная ёмкость в битах max_capacity_bits = width * height * 3 и сравнивается с total_bits_needed = len(framed_data) * 8; при превышении выбрасывается ValueError
+При извлечении проверяется корректность считанной длины data_len и условие total_bits_needed <= max_capacity_bits, чтобы не выйти за пределы изображения при повреждённом заголовке или неверном пароле
+
+Реализация из `lsb.py`:
+
+```
+max_capacity_bits = width * height * 3
+framed_data = len(data_bytes).to_bytes(4, "big") + data_bytes
+total_bits_needed = len(framed_data) * 8
+
+if total_bits_needed > max_capacity_bits:
+    raise ValueError(
+        f"Сообщение слишком большое: требуется {total_bits_needed} бит, доступно {max_capacity_bits} бит."
+    )
+```
+
+### 2.3. Как выполняется шифрование сообщения
+
+Для каждого шифрования генерируются случайная соль salt (16 байт) и случайный nonce (12 байт) через os.urandom()
+
+Из пароля и соли через PBKDF2HMAC (SHA-256) выводится 32-байтный ключ
+
+Сообщение в UTF-8 шифруется через AESGCM(key).encrypt(nonce, plaintext, None), при этом AES-GCM автоматически добавляет тег аутентификации в конец шифротекста
 
 Реализация из `lsb.py` :
 ```
+def derive_key(password: str, salt: bytes) -> bytes:
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100_000,
+    )
+    return kdf.derive(password.encode("utf-8"))
+
+
 def encrypt_message(password: str, secret_text: str) -> tuple[bytes, bytes, bytes]:
     salt = os.urandom(16)
     nonce = os.urandom(12)
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100_000)
-    key = kdf.derive(password.encode('utf-8'))
-    
+    key = derive_key(password, salt)
     aesgcm = AESGCM(key)
-    ciphertext = aesgcm.encrypt(nonce, secret_text.encode('utf-8'), None)
+    ciphertext = aesgcm.encrypt(nonce, secret_text.encode("utf-8"), None)
     return salt, nonce, ciphertext
 ```
 
-### 2.4. Псевдослучайный порядок позиций - Random LSB
-Для распределения изменений по всему изображению хэш пароля (SHA-256) используется в качестве зерна (seed) для генератора random.Random. Метод rng.shuffle(indices) формирует уникальную последовательность индексов каналов без повторений
+### 2.4.Какие служебные данные сохраняются
+
+В Plain LSB: 4 байта длины (big-endian) + байты UTF-8 текста
+
+В Encrypted LSB и Encrypted Random LSB: внутри пакета сохраняются salt (16 байт), nonce (12 байт), 4 байта длины шифротекста и сам ciphertext (AES-GCM), а снаружи embed_data добавляет 4 байта общей длины
+
+Реализация из `lsb.py` :
+
+```
+def pack_encrypted_payload(salt: bytes, nonce: bytes, ciphertext: bytes) -> bytes:
+    return salt + nonce + len(ciphertext).to_bytes(4, "big") + ciphertext
+
+
+def unpack_encrypted_payload(payload: bytes) -> tuple[bytes, bytes, bytes]:
+    salt = payload[:16]
+    nonce = payload
+    ct_len = int.from_bytes(payload, "big")
+    ciphertext = payload[32:32 + ct_len]
+    return salt, nonce, ciphertext
+```
+
+### 2.5. Как формируется псевдослучайный порядок позиций
+
+От пароля вычисляется хеш SHA-256, который переводится в целое число seed для random.Random(seed)
+
+Создаётся список индексов 0 .. max_capacity_bits - 1 и перемешивается методом rng.shuffle(indices) без повторений
+
+При извлечении по тому же паролю строится та же перестановка indices, поэтому заголовок длины и биты полезной нагрузки читаются из тех же позиций
+
+Реализация из `lsb.py` :
+
+```
+def _get_shuffled_indices(total_bits: int, password: str) -> list[int]:
+    if not password:
+        raise ValueError("Для псевдослучайного порядка необходим пароль.")
+    digest = hashlib.sha256(password.encode("utf-8")).digest()
+    seed = int.from_bytes(digest, "big")
+    rng = random.Random(seed)
+    indices = list(range(total_bits))
+    rng.shuffle(indices)
+    return indices
+```
 
 ## 3. Методика эксперимента
 
