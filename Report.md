@@ -96,7 +96,7 @@ def embed_data(
 
 Реализация из `lsb.py`:
 
-```
+```python
 framed_data = len(data_bytes).to_bytes(4, "big") + data_bytes
 
 length_bits = [flat_channels[i] & 1 for i in range(32)]
@@ -115,7 +115,7 @@ payload_bits = [flat_channels[i] & 1 for i in range(32, total_bits_needed)]
 
 Реализация из `lsb.py`:
 
-```
+```python
 max_capacity_bits = width * height * 3
 framed_data = len(data_bytes).to_bytes(4, "big") + data_bytes
 total_bits_needed = len(framed_data) * 8
@@ -135,7 +135,8 @@ if total_bits_needed > max_capacity_bits:
 Сообщение в UTF-8 шифруется через AESGCM(key).encrypt(nonce, plaintext, None), при этом AES-GCM автоматически добавляет тег аутентификации в конец шифротекста
 
 Реализация из `lsb.py` :
-```
+
+```python
 def derive_key(password: str, salt: bytes) -> bytes:
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
@@ -163,7 +164,7 @@ def encrypt_message(password: str, secret_text: str) -> tuple[bytes, bytes, byte
 
 Реализация из `lsb.py` :
 
-```
+```python
 def pack_encrypted_payload(salt: bytes, nonce: bytes, ciphertext: bytes) -> bytes:
     return salt + nonce + len(ciphertext).to_bytes(4, "big") + ciphertext
 
@@ -186,7 +187,7 @@ def unpack_encrypted_payload(payload: bytes) -> tuple[bytes, bytes, bytes]:
 
 Реализация из `lsb.py` :
 
-```
+```python
 def _get_shuffled_indices(total_bits: int, password: str) -> list[int]:
     if not password:
         raise ValueError("Для псевдослучайного порядка необходим пароль.")
