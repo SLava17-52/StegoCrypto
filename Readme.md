@@ -26,7 +26,7 @@ from lsb import embed_data, extract_plain_text
 embed_data(
     "../imgs/akashi.png",
     "../imgs/stego_plain.png",
-    "Ералаша не забудем".encode("utf-8"),
+    "слово пацана".encode("utf-8"),
     random_pos=False,
 )
 
