@@ -18,32 +18,51 @@ python src/visual.py
 
 # Примеры использования в коде:
 
-1) LSB (встраивание и извлечение)
+1) LSB 
 
 ```
-from lsb import embed_data, extract_plain_data
+from lsb import embed_data, extract_plain_text
 
-# встраиваем наш текст в мессейдж
-message = "Привет, мир!"
-embed_data("../imgs/akashi.png", "../imgs/stego_plain.png", message.encode('utf-8'), random_pos=False)
+embed_data(
+    "../imgs/akashi.png",
+    "../imgs/stego_plain.png",
+    "Ералаша не забудем".encode("utf-8"),
+    random_pos=False,
+)
 
-# извлечение текста
-extracted_text = extract_plain_data("../imgs/stego_plain.png")
-print(extracted_text)
+restored_plain = extract_plain_text("../imgs/stego_plain.png")
+print(restored_plain)
 
 ```
 2) Гибридный режим (AES-GCM + Random LSB)
 ```
-from lsb import embed_data, extract_data, encrypt_message, decrypt_message
+from lsb import embed_data, encrypt_message, pack_encrypted_payload
 
-# шифруем сообщение перед встраиванием
-password = "SecureLabPassword"
-secret_text = "Конфиденциальные данные"
-salt, nonce, ciphertext = encrypt_message(password, secret_text)
+password = "SecretLabPassword"
+salt, nonce, ciphertext = encrypt_message(password, "Ералаша не забудем")
+payload = pack_encrypted_payload(salt, nonce, ciphertext)
 
-# формируем бинарный пакет полезной нагрузки
-payload = salt + nonce + len(ciphertext).to_bytes(4, 'big') + ciphertext
+embed_data(
+    "../imgs/akashi.png",
+    "../imgs/stego_random.png",
+    payload,
+    password=password,
+    random_pos=True,
+)
+```
+3) Извлечения и расшифрования
 
-# встраивание в псевдослучайные позиции на основе пароля
-embed_data("../imgs/akashi.png", "../imgs/stego_random.png", payload, password=password, random_pos=True)
+```
+from lsb import extract_encrypted_text
+
+password = "SecretLabPassword"
+
+# Последовательный зашифрованный режим
+text_enc = extract_encrypted_text("../imgs/stego_encrypted.png", password=password, random_pos=False)
+
+# Псевдослучайный зашифрованный режим
+text_rand = extract_encrypted_text("../imgs/stego_random.png", password=password, random_pos=True)
+
+print(text_enc)
+print(text_rand)
 ```
