@@ -228,22 +228,43 @@ def _get_shuffled_indices(total_bits: int, password: str) -> list[int]:
 
 ### 4.1. Сводная таблица метрик - ее можно найти в results/metrics.csv
 
-<img width="1119" height="138" alt="image" src="https://github.com/user-attachments/assets/763eb571-a4d4-47fa-ab8c-cbba582f54ef" />
+<img width="1439" height="250" alt="image" src="https://github.com/user-attachments/assets/8da273ee-39ee-41e3-bcd9-961c4e475bfd" />
+
 
 ### 4.2. Результаты для двух уровней payload
 
-**Малый payload** (~0.01%): Изменения точечные, PSNR > 85 дБ, статистические показатели практически не отличимы от оригинала.
+Для изображения `akashi.png`:
 
-**Больший payload** (~5%): Доля измененных компонент возрастает пропорционально размеру данных, значения PSNR снижаются до ~52–58 дБ, а статистические отклонения χ² становятся заметными.
+<img width="745" height="116" alt="image" src="https://github.com/user-attachments/assets/14e118d7-2847-4d4c-a858-4ed2bff8d801" />
+
+Для изображения `gradient.png`:
+
+<img width="716" height="118" alt="image" src="https://github.com/user-attachments/assets/5b951bf4-ca18-4a9f-976d-78ff9dfbd11a" />
+
 
 ### 4.3. Визуализация
+
+## Для изображения `akashi.png`:
+
 Карта разности ее можно найти results/difference.png
 
-<img width="736" height="735" alt="image" src="https://github.com/user-attachments/assets/7fa408cb-812f-4999-9dd6-86e86e71febd" />
+<img width="2000" height="1000" alt="histogram" src="https://github.com/user-attachments/assets/1793b105-1393-40a2-bbf3-d695cdb06688" />
 
 Сравнительная гистограмма ее можно найти results/histogram.png
 
 <img width="3000" height="1500" alt="image" src="https://github.com/user-attachments/assets/9227f9e7-6025-49ae-b9d8-ef8310987d8d" />
+
+## Для изображения `gradient.png`:
+
+Карта разности ее можно найти results/difference_gradient.png
+
+<img width="512" height="512" alt="image" src="https://github.com/user-attachments/assets/a6bbc63a-183e-4f8d-8143-0a1620f5c046" />
+
+
+Сравнительная гистограмма ее можно найти results/histogram_gradient.png
+
+<img width="2000" height="1000" alt="histogram_gradient" src="https://github.com/user-attachments/assets/3c49bcb4-cb75-4f59-a2e2-614f93d54b6a" />
+
 
 ## 5. Анализ
 
