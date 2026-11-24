@@ -1,9 +1,9 @@
 Image,Variant,PSNR,SSIM,Changed_Components,Changed_Ratio(%),P(LSB=0),P(LSB=1),Chi2,p-value
 akashi.png,Cover,-,-,0,-,0.4881,0.5119,41874.42,0.0000
 akashi.png,Plain LSB,89.78,1.0000,111,0.0068,0.4882,0.5118,41847.29,0.0000
-akashi.png,Encrypted LSB,85.09,1.0000,327,0.0201,0.4882,0.5118,41830.41,0.0000
-akashi.png,Encrypted Random LSB,85.51,1.0000,297,0.0183,0.4881,0.5119,41846.39,0.0000
+akashi.png,Encrypted LSB,85.36,1.0000,307,0.0189,0.4882,0.5118,41841.90,0.0000
+akashi.png,Encrypted Random LSB,85.56,1.0000,293,0.0181,0.4881,0.5119,41846.20,0.0000
 gradient.png,Cover,-,-,0,-,0.5010,0.4990,582.49,0.0000
 gradient.png,Plain LSB,86.44,1.0000,116,0.0148,0.5010,0.4990,564.14,0.0000
-gradient.png,Encrypted LSB,82.48,1.0000,289,0.0367,0.5009,0.4991,519.28,0.0000
-gradient.png,Encrypted Random LSB,82.36,1.0000,297,0.0378,0.5010,0.4990,582.39,0.0000
+gradient.png,Encrypted LSB,82.74,1.0000,272,0.0346,0.5009,0.4991,526.92,0.0000
+gradient.png,Encrypted Random LSB,82.23,1.0000,306,0.0389,0.5010,0.4990,581.07,0.0000
