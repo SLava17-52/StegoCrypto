@@ -3,7 +3,7 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 
-
+# сохраняем усиленную карту изменений пикселей и гистограмму значений компонент
 def make_diff_and_hist(
     cover_path: str,
     stego_path: str,
@@ -31,7 +31,7 @@ def make_diff_and_hist(
     plt.savefig(hist_out, dpi=200)
     plt.close()
 
-
+#  построение карт разницы и гистограмм для тестовых изображений
 def main() -> None:
     os.makedirs("../results", exist_ok=True)
 
