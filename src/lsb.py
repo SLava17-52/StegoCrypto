@@ -24,7 +24,7 @@ def derive_key(password: str, salt: bytes) -> bytes:
     )
     return kdf.derive(password.encode("utf-8"))
 
-
+# шифрует текст в AES-GCM, возвращая соль, nonce и шифротекст с тегом
 def encrypt_message(password: str, secret_text: str) -> tuple[bytes, bytes, bytes]:
     salt = os.urandom(16)
     nonce = os.urandom(12)
@@ -41,12 +41,12 @@ def decrypt_message(password: str, salt: bytes, nonce: bytes, ciphertext: bytes)
     plaintext = aesgcm.decrypt(nonce, ciphertext, None)
     return plaintext.decode("utf-8")
 
-
+# упаковывает salt, nonce, длину шифротекста и сам шифротекст в один пакет
 def pack_encrypted_payload(salt: bytes, nonce: bytes, ciphertext: bytes) -> bytes:
     #16B+12B+4B+ciphertext
     return salt + nonce + len(ciphertext).to_bytes(4, "big") + ciphertext
 
-
+# распаковывает криптопакет обратно на salt, nonce и ciphertext с проверкой длины
 def unpack_encrypted_payload(payload: bytes) -> tuple[bytes, bytes, bytes]:
     if len(payload) < 32:
         raise ValueError("Некорректный размер зашифрованного пакета.")
@@ -72,7 +72,7 @@ def _get_shuffled_indices(total_bits: int, password: str) -> list[int]:
     rng.shuffle(indices)
     return indices
 
-
+# встраиваем байты с 4-байтовым заголовком длины в младшие биты LSB png-изображения
 def embed_data(
     image_path: str,
     output_path: str,
@@ -121,7 +121,7 @@ def embed_data(
     stego_img.putdata(new_pixels)
     stego_img.save(output_path, format="PNG")
 
-
+# считываем заголовок длины и извлекает скрытые байты из LSB контейнера
 def extract_data(
     stego_path: str,
     password: str = None,
@@ -167,19 +167,19 @@ def extract_data(
 
     return bytes(result)
 
-
+# извлекаем незашифрованный UTF-8 текст при последовательном LSB
 def extract_plain_text(stego_path: str) -> str:
     return extract_data(stego_path, random_pos=False).decode("utf-8")
 
-
+# извлекаем пакет из LSB и расшифровываем секретный текст
 def extract_encrypted_text(stego_path: str, password: str, random_pos: bool = False) -> str:
     payload = extract_data(stego_path, password=password, random_pos=random_pos)
     salt, nonce, ciphertext = unpack_encrypted_payload(payload)
     return decrypt_message(password, salt, nonce, ciphertext)
 
 
-#  Статистический анализ
-
+# Статистический анализ
+# считаем доли 0/1 в младшем бите и хи-квадрат тест пар (2k, 2k+1)
 def compute_lsb_stats(arr: np.ndarray) -> tuple[float, float, float, float]:
     lsbs = arr & 1
     p0 = float(np.mean(lsbs == 0))
@@ -199,7 +199,7 @@ def compute_lsb_stats(arr: np.ndarray) -> tuple[float, float, float, float]:
     p_val = float(1.0 - chi2.cdf(chi2_stat, df=127))
     return p0, p1, chi2_stat, p_val
 
-
+# сравниваем оригинал и варианты стегоконтейнеров по PSNR, SSIM и LSB-статистике
 def run_statistical_analysis(cover_path: str, stego_paths: dict[str, str]) -> list[dict]:
     cover_arr = np.array(Image.open(cover_path).convert("RGB"), dtype=np.int16)
     total_components = cover_arr.size
@@ -257,7 +257,7 @@ def run_statistical_analysis(cover_path: str, stego_paths: dict[str, str]) -> li
 
     return rows
 
-
+# проверяем влияние заполнения 1% и 7% ёмкости при Encrypted Random LSB
 def run_payload_comparison(cover_path: str, password: str) -> list[dict]:
     cover_arr = np.array(Image.open(cover_path).convert("RGB"), dtype=np.int16)
     total_components = cover_arr.size  # 1 бит на компоненту
