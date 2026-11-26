@@ -15,6 +15,7 @@ from scipy.stats import chi2
 #  Криптография (PBKDF2-HMAC-SHA256 + AES-GCM)
 
 def derive_key(password: str, salt: bytes) -> bytes:
+    # Получаем 32-байтный ключ из пароля и соли
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
@@ -28,6 +29,7 @@ def encrypt_message(password: str, secret_text: str) -> tuple[bytes, bytes, byte
     salt = os.urandom(16)
     nonce = os.urandom(12)
     key = derive_key(password, salt)
+    # AES-GCM дописывает тег целостности в конец шифротекста
     aesgcm = AESGCM(key)
     ciphertext = aesgcm.encrypt(nonce, secret_text.encode("utf-8"), None)
     return salt, nonce, ciphertext
@@ -41,6 +43,7 @@ def decrypt_message(password: str, salt: bytes, nonce: bytes, ciphertext: bytes)
 
 
 def pack_encrypted_payload(salt: bytes, nonce: bytes, ciphertext: bytes) -> bytes:
+    #16B+12B+4B+ciphertext
     return salt + nonce + len(ciphertext).to_bytes(4, "big") + ciphertext
 
 
@@ -61,6 +64,7 @@ def unpack_encrypted_payload(payload: bytes) -> tuple[bytes, bytes, bytes]:
 def _get_shuffled_indices(total_bits: int, password: str) -> list[int]:
     if not password:
         raise ValueError("Для псевдослучайного порядка необходим пароль.")
+        # Детерминированный seed из пароля для воспроизводимой перестановки
     digest = hashlib.sha256(password.encode("utf-8")).digest()
     seed = int.from_bytes(digest, "big")
     rng = random.Random(seed)
@@ -78,9 +82,9 @@ def embed_data(
 ) -> None:
     img = Image.open(image_path).convert("RGB")
     width, height = img.size
-    max_capacity_bits = width * height * 3
+    max_capacity_bits = width * height * 3 # 3 канала RGB: 3 бита на пиксель
 
-    # Формат рамки: [4 байта длины data_bytes][data_bytes]
+   # Заголовок длины (4 байта) + сами данные
     framed_data = len(data_bytes).to_bytes(4, "big") + data_bytes
     total_bits_needed = len(framed_data) * 8
 
@@ -136,6 +140,7 @@ def extract_data(
         indices = _get_shuffled_indices(max_capacity_bits, password)
         length_bits = [flat_channels[indices[i]] & 1 for i in range(32)]
     else:
+        # Сначала читаем 32 бита заголовка длины сообщения
         length_bits = [flat_channels[i] & 1 for i in range(32)]
 
     data_len = 0
